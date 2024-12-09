@@ -16,7 +16,7 @@ A command-line tool to generate QR codes with various options and types.
 To use this tool, you need to have Node.js installed on your system. You can install the QR Code Generator by cloning this repository and running the following commands:
 
 ```sh
-git clone https://github.com/ToolsPeople200/qr-code-generator.git
+git clone https://github.com/lyssadev/qr-code-generator.git
 cd qr-code-generator
 npm install
 ```
