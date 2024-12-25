@@ -1,80 +1,56 @@
-const qrcode = require('qrcode');
-const fs = require('fs');
-const path = require('path');
-const yargs = require('yargs');
+import qrcode from 'qrcode';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Command } from 'commander';
 
-const argv = yargs
-  .option('type', {
-    alias: 't',
-    describe: 'Type of QR code (url, text, email, phone, sms, wifi, vcard)',
-    type: 'string',
-    default: 'url'
-  })
-  .option('output', {
-    alias: 'o',
-    describe: 'Output format (png, svg, text)',
-    type: 'string',
-    default: 'png'
-  })
-  .option('filename', {
-    alias: 'f',
-    describe: 'Output file name',
-    type: 'string',
-    default: 'qrcode'
-  })
-  .option('size', {
-    alias: 's',
-    describe: 'Size of the QR code',
-    type: 'number',
-    default: 200
-  })
-  .option('color', {
-    alias: 'c',
-    describe: 'Color of the QR code',
-    type: 'string',
-    default: '#000000'
-  })
-  .option('background', {
-    alias: 'b',
-    describe: 'Background color of the QR code',
-    type: 'string',
-    default: '#ffffff'
-  })
-  .help()
-  .alias('help', 'h')
-  .argv;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const data = argv._[0];
+const program = new Command();
+
+program
+  .name('qr-code-generator')
+  .description('A command-line tool to generate QR codes with various options and types.')
+  .argument('<data>', 'Data to encode in the QR code')
+  .option('-t, --type <type>', 'Type of QR code (url, text, email, phone, sms, wifi, vcard)', 'url')
+  .option('-o, --output <output>', 'Output format (png, svg, text)', 'png')
+  .option('-f, --filename <filename>', 'Output file name', 'qrcode')
+  .option('-s, --size <size>', 'Size of the QR code', 200)
+  .option('-c, --color <color>', 'Color of the QR code', '#000000')
+  .option('-b, --background <background>', 'Background color of the QR code', '#ffffff')
+  .parse(process.argv);
+
+const options = program.opts();
+const data = program.args[0];
+
 if (!data) {
   console.error('Please provide data as a command-line argument.');
-  process.exit(1);
+  program.help();
 }
 
-const options = {
-  type: argv.type,
-  output: argv.output,
-  filename: argv.filename,
-  size: argv.size,
-  color: argv.color,
-  background: argv.background
-};
-
-const generateQRCode = (data, options) => {
+const generateQRCode = async (data, options) => {
   const { type, output, filename, size, color, background } = options;
 
   let qrData = data;
-  if (type === 'email') {
-    qrData = `mailto:${data}`;
-  } else if (type === 'phone') {
-    qrData = `tel:${data}`;
-  } else if (type === 'sms') {
-    qrData = `sms:${data}`;
-  } else if (type === 'wifi') {
-    const [ssid, password, security] = data.split(':');
-    qrData = `WIFI:S:${ssid};T:${security};P:${password};;`;
-  } else if (type === 'vcard') {
-    const [name, email, phone] = data.split(':');
-    qrData = `BEGIN:VCARD\nVERSION:3.0\nN:${name}\nEMAIL:${email}\nTEL:${phone}\nEND:VCARD`;
+  switch (type) {
+    case 'email':
+      qrData = `mailto:${data}`;
+      break;
+    case 'phone':
+      qrData = `tel:${data}`;
+      break;
+    case 'sms':
+      qrData = `sms:${data}`;
+      break;
+    case 'wifi':
+      const [ssid, password, security] = data.split(':');
+      qrData = `WIFI:S:${ssid};T:${security};P:${password};;`;
+      break;
+    case 'vcard':
+      const [name, email, phone] = data.split(':');
+      qrData = `BEGIN:VCARD\nVERSION:3.0\nN:${name}\nEMAIL:${email}\nTEL:${phone}\nEND:VCARD`;
+      break;
   }
 
   const filePath = path.join(__dirname, `${filename}.${output}`);
@@ -87,18 +63,18 @@ const generateQRCode = (data, options) => {
     }
   };
 
-  if (output === 'text') {
-    qrcode.toDataURL(qrData, qrOptions, (err, dataUrl) => {
-      if (err) throw err;
+  try {
+    if (output === 'text') {
+      const dataUrl = await qrcode.toDataURL(qrData, qrOptions);
       console.log('QR Code as Data URL:', dataUrl);
       fs.writeFileSync(filePath, dataUrl);
       console.log(`Data URL saved to ${filePath}`);
-    });
-  } else {
-    qrcode.toFile(filePath, qrData, qrOptions, (err) => {
-      if (err) throw err;
+    } else {
+      await qrcode.toFile(filePath, qrData, qrOptions);
       console.log(`QR Code saved as ${filePath}`);
-    });
+    }
+  } catch (err) {
+    console.error('Error generating QR code:', err);
   }
 };
 
